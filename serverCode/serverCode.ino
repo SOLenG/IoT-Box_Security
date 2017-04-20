@@ -9,6 +9,7 @@
 const int buzzer = D3;     //Sortie Buzzer
 int photocellPin = 0;     // the cell and 10K pulldown are connected to a0
 int photocellReading;     // the analog reading from the analog resistor divider
+bool isMailLight = false;
 
 /*****Initialization*****/
 ESP8266WebServer server(80);
@@ -85,6 +86,7 @@ void desactivateTest()
   String answer = getHTML();
   answer.replace("Securise", "Securise");
   server.send(200, "text/html", answer);
+  isMailLight = true;
 }
 /*** Manage Journal ****/
 
@@ -100,24 +102,49 @@ int lightSensorRead()
 {
    photocellReading = analogRead(photocellPin);  
  
-  Serial.print("Analog reading = ");
-  Serial.print(photocellReading);     // the raw analog reading
- 
-  // We'll have a few threshholds, qualitatively determined
+//  Serial.print("Analog reading = ");
+//  Serial.print(photocellReading);     
+
   if (photocellReading < 10) {
-    Serial.println(" - Dark");
+ //   Serial.println(" - Dark");
   } else if (photocellReading < 200) {
-    Serial.println(" - Dim");
+//    Serial.println(" - Dim");
   } else if (photocellReading < 500) {
-    Serial.println(" - Light");
+  //  Serial.println(" - Light");
     //journal évenements : ouvert
+    
   } else if (photocellReading < 800) {
-    Serial.println(" - Bright");
+  //Journal des évenements :
+    
+  //Mail :
+    if(isMailLight == false)
+    {
+     Serial.println(" mail light ok");
+    }
+    else
+    {
+     sendMailLumiere();
+     isMailLight = false;
+     Serial.println(" mail light KO"); 
+    }
   } else {
-    Serial.println(" - Very bright");
+   //Serial.println(" - Very bright");
     //journal évenements : ouvert
   }
   return photocellReading;
+}
+/*** Tools ***/
+
+void sendMailLumiere()
+{
+    Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
+    String subject = "ALERTE : BOITE OUVERTE";
+    if(gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "ALERTE : Votre boîte a été ouverte !")) {
+        Serial.println("Message send.");
+    } else {
+        Serial.print("Error sending message: ");
+        Serial.println(gsender->getError());
+    }
 }
 /****Setups****/
 
@@ -162,14 +189,14 @@ void setup() {
     setupServer();
     setupMDNS();
 
-    Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
+ /*   Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
     String subject = "Subject is optional!";
     if(gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "COUCOU")) {
         Serial.println("Message send.");
     } else {
         Serial.print("Error sending message: ");
         Serial.println(gsender->getError());
-    }
+    }*/
 
     Serial.println("Setup OK.");
 }
@@ -178,11 +205,11 @@ void setup() {
 void loop() {
     server.handleClient();
     //gérer capteur de lumière
- /*   if(lightSensorRead()>= 500)
+    if(lightSensorRead()>= 500)
     {
       activateTest();
     }
-    desactivateTest();*/
+    desactivateTest();
     //gérer capteur déplacement
 }
 
