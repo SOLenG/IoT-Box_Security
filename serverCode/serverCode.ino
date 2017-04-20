@@ -4,6 +4,7 @@
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266mDNS.h>          //Allow custom URL
+#include "Gsender.h"             //Bibliothèque pour envoi de mail (Gmail)
 
 const int buzzer = D3;     //Sortie Buzzer
 int photocellPin = 0;     // the cell and 10K pulldown are connected to a0
@@ -16,19 +17,15 @@ const char *ssid = "Box_Security";
 /*****WebPage*****/
 // Warning: only use simple quotes in the html (no double)
 String rootHTML = "\
-<!doctype html> <html> <head> <title> Box Security </title> </head> <body>\
-<br> <br> Analog input: xxx V (<a href='/'>refresh<a>)\
-<form method='get' action='/buzz'>\
-  <br><br> <button type='submit' name='etatBuzz' value='on'>  Activation Alarme  </button>\
-</form>\
-<form method='get' action='/debuzz'>\
-  <br><br> <button type='submit' name='etatBuzz' value='off'>  Desactivation Alarme  </button>\
-</form>\
-<form method='get' action='/journal'>\
+<!doctype html> <html><center> <head> <title> Box Security </title> </head></center><center> <body>\
+<table>\
+<tr><form method='get' action='/journal'>\
   <br><br> <button type='submit'>  Journal evenements  </button>\
-</form>\
-<br> No .\
-</body> </html>\
+  <br><br> <input type='text' name='event'> \
+</form></tr> \
+<tr><br> Etat du coffre : Securise .\ 
+</tr> </table>\
+</body></center> </html>\
 ";
 
 String getHTML() {
@@ -44,7 +41,7 @@ void handleRoot() {
 
 /****Manage Buzzer ***/
 
-void activateBuzzer() {
+/*void activateBuzzer() {
  if ( server.hasArg("etatBuzz") ) { 
   tone(buzzer, 1000); 
   Serial.println("Buzzer activé");
@@ -71,21 +68,23 @@ void desactivateBuzzer() {
  String answer = getHTML();
  answer.replace("No", "Buzzer OFF");
  server.send(200, "text/html", answer);
-}
+}*/
 
 void activateTest()
 {
   tone(buzzer, 1000); 
   Serial.println("Buzzer activé");
   String answer = getHTML();
- answer.replace("No", "Buzzer ON");
+  answer.replace("Securise", "Non securise");
+  server.send(200, "text/html", answer);
 }
 
 void desactivateTest()
 {
   noTone(buzzer); 
   String answer = getHTML();
-  answer.replace("No", "Buzzer OFF");
+  answer.replace("Securise", "Securise");
+  server.send(200, "text/html", answer);
 }
 /*** Manage Journal ****/
 
@@ -111,10 +110,12 @@ int lightSensorRead()
     Serial.println(" - Dim");
   } else if (photocellReading < 500) {
     Serial.println(" - Light");
+    //journal évenements : ouvert
   } else if (photocellReading < 800) {
     Serial.println(" - Bright");
   } else {
     Serial.println(" - Very bright");
+    //journal évenements : ouvert
   }
   return photocellReading;
 }
@@ -135,8 +136,8 @@ void setupWifi() {
 
 void setupServer() {
     server.on("/", handleRoot);
-    server.on("/buzz", activateBuzzer);
-    server.on("/debuzz", desactivateBuzzer);
+  //  server.on("/buzz", activateBuzzer);
+  //  server.on("/debuzz", desactivateBuzzer);
     server.on("/journal", lectureJournal);
     server.begin();
     Serial.println("HTTP server started");
@@ -161,16 +162,27 @@ void setup() {
     setupServer();
     setupMDNS();
 
+    Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
+    String subject = "Subject is optional!";
+    if(gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "COUCOU")) {
+        Serial.println("Message send.");
+    } else {
+        Serial.print("Error sending message: ");
+        Serial.println(gsender->getError());
+    }
+
     Serial.println("Setup OK.");
 }
 
 /****Loop****/
 void loop() {
     server.handleClient();
-    if(lightSensorRead()>= 500)
+    //gérer capteur de lumière
+ /*   if(lightSensorRead()>= 500)
     {
       activateTest();
     }
-    desactivateTest();
+    desactivateTest();*/
+    //gérer capteur déplacement
 }
 
