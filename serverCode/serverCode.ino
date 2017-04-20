@@ -5,10 +5,9 @@
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266mDNS.h>          //Allow custom URL
 
-typedef enum color_e {RED, GREEN, BLUE, YELLOW, OFF} color_t;
-const int RGBpins[] = {D8, D6, D7};
-const int debugLEDpin = D4;
-const int buzzer = D3;
+const int buzzer = D3;     //Sortie Buzzer
+int photocellPin = 0;     // the cell and 10K pulldown are connected to a0
+int photocellReading;     // the analog reading from the analog resistor divider
 
 /*****Initialization*****/
 ESP8266WebServer server(80);
@@ -33,34 +32,14 @@ String rootHTML = "\
 ";
 
 String getHTML() {
-    digitalWrite(debugLEDpin, LOW);  // (inverted logic)
-
     String updatedRootHTML = rootHTML;
     String voltage = String(analogRead(A0) * 3. / 1024.);
     updatedRootHTML.replace("xxx", voltage);
-
-    digitalWrite(debugLEDpin, HIGH); // (inverted logic)
     return updatedRootHTML;
 }
 
 void handleRoot() {
     server.send(200, "text/html", getHTML());
-}
-
-/****Manage LEDs****/
-void handleLEDs() {
-    String color_str;
-    if ( server.hasArg("toggle") ) {
-        color_str = server.arg(0);
-        LEDtoggle(color_str[0]);
-    } else {
-        Serial.println("Bad URL.");
-        server.send(404, "text/plain", "Bad URL.");
-        return;
-    }
-    String answer = getHTML();
-    answer.replace("No", color_str);
-    server.send(200, "text/html", answer);
 }
 
 /****Manage Buzzer ***/
@@ -90,10 +69,24 @@ void desactivateBuzzer() {
         return;
  }
  String answer = getHTML();
- answer.replace("ON", "OFF");
+ answer.replace("No", "Buzzer OFF");
  server.send(200, "text/html", answer);
 }
 
+void activateTest()
+{
+  tone(buzzer, 1000); 
+  Serial.println("Buzzer activé");
+  String answer = getHTML();
+ answer.replace("No", "Buzzer ON");
+}
+
+void desactivateTest()
+{
+  noTone(buzzer); 
+  String answer = getHTML();
+  answer.replace("No", "Buzzer OFF");
+}
 /*** Manage Journal ****/
 
 void lectureJournal() {
@@ -101,6 +94,30 @@ void lectureJournal() {
 }
 
 /*** Manage Capteurs ***/
+
+//Capteur de luminosité 
+
+int lightSensorRead()
+{
+   photocellReading = analogRead(photocellPin);  
+ 
+  Serial.print("Analog reading = ");
+  Serial.print(photocellReading);     // the raw analog reading
+ 
+  // We'll have a few threshholds, qualitatively determined
+  if (photocellReading < 10) {
+    Serial.println(" - Dark");
+  } else if (photocellReading < 200) {
+    Serial.println(" - Dim");
+  } else if (photocellReading < 500) {
+    Serial.println(" - Light");
+  } else if (photocellReading < 800) {
+    Serial.println(" - Bright");
+  } else {
+    Serial.println(" - Very bright");
+  }
+  return photocellReading;
+}
 /****Setups****/
 
 //gets called when WiFiManager enters configuration mode
@@ -109,28 +126,15 @@ void configModeCallback(WiFiManager *myWiFiManager) {
 }
 
 void setupWifi() {
-    //WiFiManager
     WiFiManager wifiManager;
-
-    //reset saved settings -- Flush flash
-    //wifiManager.resetSettings();
-
-    //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
     wifiManager.setAPCallback(configModeCallback);
-
-    //fetches ssid and pass from eeprom and tries to connect
-    //if it does not connect it starts an access point with the specified name
-    //and goes into a blocking loop awaiting configuration
     wifiManager.autoConnect(ssid);
-
-    // might seem redundant but it's not printed the 1st time:
     Serial.println("local ip");
     Serial.println(WiFi.localIP());
 }
 
 void setupServer() {
     server.on("/", handleRoot);
-    server.on("/set", handleLEDs);
     server.on("/buzz", activateBuzzer);
     server.on("/debuzz", desactivateBuzzer);
     server.on("/journal", lectureJournal);
@@ -149,62 +153,24 @@ void setupMDNS() {
 }
 
 void setup() {
-    pinMode(debugLEDpin, OUTPUT);
-    digitalWrite(debugLEDpin, HIGH);  // (inverted logic)
+
     pinMode(buzzer, OUTPUT); // Sortie du Buzzer
-    
-    for (int i=0; i<3; i++)
-        pinMode(RGBpins[i], OUTPUT);
-
     Serial.begin(115200);
-
-    Serial.println("Starting LEDs.");
-    LEDfeedback(YELLOW); // state feedback
-
     Serial.println("Starting WiFi.");
     setupWifi();
     setupServer();
     setupMDNS();
 
     Serial.println("Setup OK.");
-    LEDfeedback(OFF); // ready
-    digitalWrite(debugLEDpin, LOW);  // (inverted logic)
 }
 
 /****Loop****/
 void loop() {
     server.handleClient();
-}
-
-/****LEDs****/
-bool RGBstates[3];
-const float RGBintensities[] = {0xFF, 0xFF*0.3, 0xFF*0.6};
-
-void LEDtoggle(char color) {
-    int i = 0;
-    switch (color) {
-        case 'R' : i = 0; break;
-        case 'G' : i = 1; break;
-        case 'B' : i = 2; break;
-        default:
-            Serial.print("LEDtoggle() switch failed!");
-            return;
+    if(lightSensorRead()>= 500)
+    {
+      activateTest();
     }
-    RGBstates[i] ^= 1; // toggle
-    analogWrite(RGBpins[i], RGBstates[i]*RGBintensities[i]);
+    desactivateTest();
 }
 
-void LEDfeedback(color_t color) {
-    switch (color) {
-        case RED :    RGBstates[0]=1; RGBstates[1]=0; RGBstates[2]=0; break;
-        case GREEN :  RGBstates[0]=0; RGBstates[1]=1; RGBstates[2]=0; break;
-        case BLUE :   RGBstates[0]=0; RGBstates[1]=0; RGBstates[2]=1; break;
-        case YELLOW : RGBstates[0]=1; RGBstates[1]=1; RGBstates[2]=0; break;
-        case OFF :    RGBstates[0]=0; RGBstates[1]=0; RGBstates[2]=0; break;
-        default:
-            Serial.print("LEDfeedback() switch failed!");
-            return;
-    }
-    for (int i=0; i<3; i++)
-        analogWrite(RGBpins[i], RGBstates[i]*RGBintensities[i]);
-}
