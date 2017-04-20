@@ -74,7 +74,6 @@ void desactivateBuzzer() {
 void activateTest()
 {
   tone(buzzer, 1000); 
-  Serial.println("Buzzer activé");
   String answer = getHTML();
   answer.replace("Securise", "Non securise");
   server.send(200, "text/html", answer);
@@ -119,13 +118,13 @@ int lightSensorRead()
   //Mail :
     if(isMailLight == false)
     {
-     Serial.println(" mail light ok");
+     Serial.println(" fin d'envoi mail");
     }
     else
     {
      sendMailLumiere();
      isMailLight = false;
-     Serial.println(" mail light KO"); 
+     Serial.println("Mail envoyé ! "); 
     }
   } else {
    //Serial.println(" - Very bright");
@@ -140,6 +139,30 @@ void sendMailLumiere()
     Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
     String subject = "ALERTE : BOITE OUVERTE";
     if(gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "ALERTE : Votre boîte a été ouverte !")) {
+        Serial.println("Message send.");
+    } else {
+        Serial.print("Error sending message: ");
+        Serial.println(gsender->getError());
+    }
+}
+
+void sendMailDeplacement()
+{
+    Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
+    String subject = "ALERTE : BOITE DEPLACEE";
+    if(gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "ALERTE : Votre boîte a été déplacée !")) {
+        Serial.println("Message send.");
+    } else {
+        Serial.print("Error sending message: ");
+        Serial.println(gsender->getError());
+    }
+}
+
+void sendMailPresence()
+{
+    Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
+    String subject = "ALERTE : PRESENCE AUTOUR DE LA BOITE";
+    if(gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "ALERTE : Une présence a été detectée autour de votre boîte !")) {
         Serial.println("Message send.");
     } else {
         Serial.print("Error sending message: ");
@@ -189,15 +212,6 @@ void setup() {
     setupServer();
     setupMDNS();
 
- /*   Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
-    String subject = "Subject is optional!";
-    if(gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "COUCOU")) {
-        Serial.println("Message send.");
-    } else {
-        Serial.print("Error sending message: ");
-        Serial.println(gsender->getError());
-    }*/
-
     Serial.println("Setup OK.");
 }
 
@@ -210,6 +224,7 @@ void loop() {
       activateTest();
     }
     desactivateTest();
+    
     //gérer capteur déplacement
 }
 
