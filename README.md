@@ -49,3 +49,6 @@ Composants nécessaires
 * reset wifi config by web interface
 * Config mail target by web interface
 
+WARNING : for mail sender, you must change the login and password in gsender.h by your logins (encode 64), 
+the ones writtend actually are not working
+
