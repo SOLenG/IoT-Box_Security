@@ -270,15 +270,13 @@ void handleLogin() {
 
 /** LogOut Controller **/
 void handleLogout() {
-  if (server.hasArg("DISCONNECT")) {
-    Serial.println("Disconnection");
-    server.sendHeader("Location", "/login");
-    server.sendHeader("Cache-Control", "no-cache");
-    server.sendHeader("Set-Cookie", "ESPSESSIONID=0");
-    server.send(301);
+  Serial.println("Disconnection");
+  server.sendHeader("Location", "/login");
+  server.sendHeader("Cache-Control", "no-cache");
+  server.sendHeader("Set-Cookie", "ESPSESSIONID=0");
+  server.send(301);
 
-    return;
-  }
+  return;
 }
 
 /**
