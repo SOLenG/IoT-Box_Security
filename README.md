@@ -1,24 +1,22 @@
-# IoT-intro
+# IoT - Box Security
 
  - ESGI Projet
  
-Objectif
+Goal
 --------
 
- Créer un système de sécurité par alarme pour un conteneur de petite taille, contrôlé via une interface WEB permettant de l’activer, désactiver, émettre des notification sur des événements et la consultation des derniers événement au travers d’un journal.
+ Create an alarm security system for a small container controlled by a web interface to dis/enable, send a issue notification and view the latest event logs. 
  
-Fonctionnalités
+Features
 ---------------
 
-List features :
 - Mailing
 - Interface web
-  - Dés/Activation de l’alarme par saisie d’un code
-  - Consultation du journal des événement
-- Alarme :
-  - Emission sonore
-  - Visualisation de l’état d’activation
-  - Temporisation avant déclenchement de l’alarme (emission sonore) pour la saisie du code
+  - Dis/enable alarm by user authenticated
+  - Logs
+- Alarm :
+  - Sound Alert
+  - States vizualisation
 
 Composants nécessaires 
 ----------------------
