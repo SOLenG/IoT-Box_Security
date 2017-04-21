@@ -14,19 +14,21 @@ const int alertLEDpin = D1;      // This LED return the state of alarm (active/i
 const int processLEDpin = D3;    // This LED return the state of server (active/inactive)
 const int debugLEDpin = D4;      // This LED return the state of alarm (armed/disable)
 const int buzzer = D6;           // Sortie Buzzer
-const int sensorPin = D7;        // Movement sensor
-const int photocellPin = A0;     // the cell and 10K pulldown are connected to a0
+const int movementSensorPin = D7;   // Movement sensor
+const int photocellSensorPin = A0;  // the cell and 10K pulldown are connected to a0
 bool isActive = false;           // the state of alarm (active/inactive)
 bool inProcess = false;          // the state of server (active/inactive)
 bool inAlarm = false;            // the state of server (active/inactive)
+bool mailSend = false;           // limit the number send mail
 int sensor;                      // Variable to store analog value (0-1023)
 int photocellReading;            // the analog reading from the analog resistor divider
-bool isMailLight = false;        // limit the number send mail
 
 /******__AUTHENTICATE__********/
 String www_username = "admin";   // username for authenticate
 String www_password = "admin";   // password for authenticate
 
+/******____MAILING_____********/
+String email = "admin@admin.ad";
 /*******__PAGES__CODE__********/
 const int PAGE_ROOT = 0;         // Main page
 const int PAGE_TOGGLE = 1;       // Alarm setting page
@@ -59,9 +61,11 @@ String toggle_desactivation = "Desactivation";
    ARDUINO SYSTEM
 */
 void setup() {
+  email = "gamelinfabien@gmail.com";
   pinMode(debugLEDpin, OUTPUT);
   pinMode(alertLEDpin, OUTPUT);
   pinMode(processLEDpin, OUTPUT);
+  pinMode(movementSensorPin, INPUT);
   Serial.begin(115200);
 
   Serial.println("Starting WiFi.");
@@ -130,15 +134,14 @@ bool runAlarm() {
   runLED();
   if (isActive && inAlarm) {
     tone(buzzer, 500);
-  } else if (isActive) {
-    sensor = analogRead(A0);
-    //While sensor is not moving, analog pin receive 1023~1024 value
-
-    Serial.print("sensor      :");
-    Serial.println(sensor);
-    if (sensor < 1022 || lightSensorRead() >= 500) {
-      inAlarm = true;
+    if (!mailSend) {
+      sendMail();
+      mailSend = true;
+      Serial.println("Mail envoyé ! ");
     }
+  } else if (isActive) {
+    inAlarm = sensorOnAlert();
+
   } else {
     noTone(buzzer);
   }
@@ -270,33 +273,10 @@ void handleLogout() {
 /**
    Mailings system
 */
-void sendMailLumiere() {
+void sendMail() {
   Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
-  String subject = "ALERTE : BOITE OUVERTE";
-  if (gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "ALERTE : Votre boîte a été ouverte !")) {
-    Serial.println("Message send.");
-  } else {
-    Serial.print("Error sending message: ");
-    Serial.println(gsender->getError());
-  }
-}
-
-void sendMailDeplacement() {
-  Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
-  String subject = "ALERTE : BOITE DEPLACEE";
-  if (gsender->Subject(subject)->Send("gamelinfabien@gmail.com", "ALERTE : Votre boîte a été déplacée !")) {
-    Serial.println("Message send.");
-  } else {
-    Serial.print("Error sending message: ");
-    Serial.println(gsender->getError());
-  }
-}
-
-void sendMailPresence() {
-  Gsender *gsender = Gsender::Instance();    // Getting pointer to class instance
-  String subject = "ALERTE : PRESENCE AUTOUR DE LA BOITE";
-  if (gsender->Subject(subject)->Send("gamelinfabien@gmail.com",
-                                      "ALERTE : Une présence a été detectée autour de votre boîte !")) {
+  String subject = "Box Security - WARNING : BOITE THREATENED";
+  if (gsender->Subject(subject)->Send(email, "WARNING : Your box is threatened !")) {
     Serial.println("Message send.");
   } else {
     Serial.print("Error sending message: ");
@@ -307,22 +287,27 @@ void sendMailPresence() {
 /**
    Sensor Reader
 */
-int lightSensorRead() {
-  /*photocellReading = analogRead(photocellPin);
-          Serial.print("photocellReading : ");
-          Serial.println(photocellReading);
-    if (photocellReading < 800) {
-      //Mail :
-      if (!isMailLight) {
-          Serial.println(" fin d'envoi mail");
-      } else {
-          sendMailLumiere();
-          isMailLight = false;
-          Serial.println("Mail envoyé ! ");
-      }
-    }*/
+bool sensorOnAlert() {
+  return movementSensorOnAlert() || lightSensorOnAlert();
+}
 
-  return 0;//photocellReading;
+bool movementSensorOnAlert() {
+  sensor = digitalRead(movementSensorPin);
+  //While sensor is not moving, analog pin receive 1023~1024 value
+
+  Serial.print("sensor      :");
+  Serial.println(sensor);
+
+  return sensor == HIGH;
+}
+
+bool lightSensorOnAlert() {
+  photocellReading = analogRead(photocellSensorPin);
+
+  Serial.print("photocellReading : ");
+  Serial.println(photocellReading);
+
+  return photocellReading > 500;//photocellReading;
 }
 
 /**
@@ -343,8 +328,15 @@ bool is_authentified() {
   return false;
 }
 bool toggleAlarm() {
-  isActive = !isActive;
-  inAlarm = false;
+  return isActive = !isActive;
+}
+
+bool toggleInAlarm() {
+  if (!isActive) {
+    return inAlarm = false;
+  }
+
+  return inAlarm = !inAlarm;
 }
 
 String currentState() {
