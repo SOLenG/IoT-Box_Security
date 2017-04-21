@@ -28,7 +28,7 @@ Composants nécessaires
 - 3 LED (States vizualisation)
 - 1 Resistance of 10k ohms
 
-![SCHEMA](https://image.noelshack.com/fichiers/2017/11/1489757082-schema.png)
+![SCHEMA](https://raw.githubusercontent.com/SOLenG/IoT-Box_Security/master/doc/montage_boxsecurity.png)
 
 # Change Logs :
 
