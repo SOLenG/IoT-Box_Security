@@ -35,14 +35,12 @@ const int PAGE_ROOT = 0;         // Main page
 const int PAGE_TOGGLE = 1;       // Alarm setting page
 
 /*******__HTML_PAGE__**********/
-String page_struct = "<!doctype html> <html> <head> <title> IoT into </title> </head> <body>\
-{%CONTENT%}\
-</body> </html>\
-";
+String page_struct = "<!doctype html> <html> <head> <title> IoT into </title> </head><style>{%CSS%}</style><body><div class='container'>{%CONTENT%}</div></body></html>";
 String page_root = "\
 <p>{%CURRENT_STATE%}</p>\
 <p><a href='/alarm'>Settings</a></p>\
 <p><a href='/log'>Logs</a></p>\
+<p><a href='/logout'>Logout</a></p>\
 \
 ";
 String page_toggleAlarm = "\
@@ -50,8 +48,11 @@ String page_toggleAlarm = "\
 <form method='get' action='/set'>\
 <button type='submit' name='toggle' value='alarm'>{%STATUS%}</button>\
 </form>\
+<a href='\/'>return</>\
 ";
 
+/*******__CSS___***************/
+String main_css = ".container{padding: 9px 14px;margin-bottom: 14px;background-color: #f7f7f9;border: 1px solid #e1e1e8;border-radius: 4px;}";
 /*******__MESSAGES__***********/
 String active = "Active";
 String desactive = "Desactive";
@@ -169,6 +170,7 @@ String getHTML(int page) {
 
   String html_struct = "" + page_struct;
   html_struct.replace("{%CONTENT%}", html);
+  html_struct.replace("{%CSS%}", main_css);
 
   return html_struct;
 }
