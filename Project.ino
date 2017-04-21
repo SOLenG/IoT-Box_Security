@@ -66,7 +66,7 @@ void setup() {
   pinMode(debugLEDpin, OUTPUT);
   pinMode(alertLEDpin, OUTPUT);
   pinMode(processLEDpin, OUTPUT);
-  pinMode(movementSensorPin, INPUT);
+  pinMode(movementSensorPin, INPUT_PULLUP);
   Serial.begin(115200);
 
   Serial.println("Starting WiFi.");
@@ -145,6 +145,8 @@ bool runAlarm() {
     inAlarm = sensorOnAlert();
 
   } else {
+    toggleInAlarm();
+    toggleMailSend();
     noTone(buzzer);
   }
 }
@@ -199,8 +201,10 @@ void handleRoot() {
 void handleAlarm() {
   if (!is_authentified()) {
     _authenticate();
+
     return;
   }
+
   Serial.print("Call handleAlarm ...");
   Serial.println("Alam Form .");
   server.send(200, "text/html", getHTML(PAGE_TOGGLE));
@@ -220,6 +224,7 @@ void handleAlarmSetting() {
   } else {
     Serial.println("Bad URL.");
     server.send(404, "text/plain", "Bad URL.");
+
     return;
   }
   Serial.println("success .");
@@ -248,6 +253,7 @@ void handleLogin() {
       server.sendHeader("Set-Cookie", "ESPSESSIONID=1");
       server.send(301);
       Serial.println("Log in Successful");
+
       return;
     }
     msg = "Wrong username/password! try again.";
@@ -298,10 +304,14 @@ bool sensorOnAlert() {
 
 bool movementSensorOnAlert() {
   sensor = digitalRead(movementSensorPin);
-  //While sensor is not moving, analog pin receive 1023~1024 value
+  // While sensor is not moving, pin receive
+  //In Analog =>  1023~1024 value
+  //In Digit => 0 value (LOW)
 
   Serial.print("sensor      :");
   Serial.println(sensor);
+  Serial.print("sensor      :");
+  Serial.println(sensor == LOW ? "LOW" : "HIGH");
 
   return sensor == HIGH;
 }
@@ -312,7 +322,7 @@ bool lightSensorOnAlert() {
   Serial.print("photocellReading : ");
   Serial.println(photocellReading);
 
-  return photocellReading > 500;//photocellReading;
+  return photocellReading > 500;
 }
 
 /**
@@ -347,6 +357,14 @@ bool toggleInAlarm() {
   }
 
   return inAlarm = !inAlarm;
+}
+
+bool toggleMailSend() {
+  if (!isActive) {
+    return mailSend = false;
+  }
+
+  return mailSend = !mailSend;
 }
 
 String getLabelCurrentState() {
