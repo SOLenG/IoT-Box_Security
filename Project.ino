@@ -5,7 +5,7 @@
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ESP8266mDNS.h>          //Allow custom URL
-#include "Gsender.h"             //Bibliothèque pour envoi de mail (Gmail)
+#include "Gsender.h"              //Library to sendMail (Gmail)
 
 /*****Initialization*****/
 ESP8266WebServer server(80);
@@ -29,6 +29,7 @@ String www_password = "admin";   // password for authenticate
 
 /******____MAILING_____********/
 String email = "admin@admin.ad";
+
 /*******__PAGES__CODE__********/
 const int PAGE_ROOT = 0;         // Main page
 const int PAGE_TOGGLE = 1;       // Alarm setting page
@@ -65,7 +66,7 @@ void setup() {
   pinMode(debugLEDpin, OUTPUT);
   pinMode(alertLEDpin, OUTPUT);
   pinMode(processLEDpin, OUTPUT);
-  pinMode(movementSensorPin, INPUT);
+  pinMode(movementSensorPin, INPUT_PULLUP);
   Serial.begin(115200);
 
   Serial.println("Starting WiFi.");
@@ -78,6 +79,8 @@ void setup() {
 
 void loop() {
   server.handleClient();
+
+  runLED();
   runAlarm();
   delay(1);
 }
@@ -116,7 +119,7 @@ void setupServer() {
   server.collectHeaders(headerkeys, headerkeyssize);
 
   server.begin();
-  inProcess = true; // waiting for connection
+  inProcess = true; // server ready
   runLED();
   Serial.println("HTTP server started");
 }
@@ -131,7 +134,6 @@ bool runLED() {
 }
 
 bool runAlarm() {
-  runLED();
   if (isActive && inAlarm) {
     tone(buzzer, 500);
     if (!mailSend) {
@@ -143,6 +145,8 @@ bool runAlarm() {
     inAlarm = sensorOnAlert();
 
   } else {
+    toggleInAlarm();
+    toggleMailSend();
     noTone(buzzer);
   }
 }
@@ -159,9 +163,9 @@ String getHTML(int page) {
     html = html + page_root;
   } else if (page == PAGE_TOGGLE) {
     html = html + page_toggleAlarm;
-    html.replace("{%STATUS%}", currentButtonToggle());
+    html.replace("{%STATUS%}", getLabelToggleButton());
   }
-  html.replace("{%CURRENT_STATE%}", currentState());
+  html.replace("{%CURRENT_STATE%}", getLabelCurrentState());
 
   String html_struct = "" + page_struct;
   html_struct.replace("{%CONTENT%}", html);
@@ -197,8 +201,10 @@ void handleRoot() {
 void handleAlarm() {
   if (!is_authentified()) {
     _authenticate();
+
     return;
   }
+
   Serial.print("Call handleAlarm ...");
   Serial.println("Alam Form .");
   server.send(200, "text/html", getHTML(PAGE_TOGGLE));
@@ -218,6 +224,7 @@ void handleAlarmSetting() {
   } else {
     Serial.println("Bad URL.");
     server.send(404, "text/plain", "Bad URL.");
+
     return;
   }
   Serial.println("success .");
@@ -232,12 +239,13 @@ void handleError() {
 
 /** Login Controller **/
 void handleLogin() {
-  String msg;
+  String msg = "";
   if (server.hasHeader("Cookie")) {
     Serial.print("Found cookie: ");
     String cookie = server.header("Cookie");
     Serial.println(cookie);
   }
+
   if (server.hasArg("USERNAME") && server.hasArg("PASSWORD")) {
     if (server.arg("USERNAME") == www_username && server.arg("PASSWORD") == www_password) {
       server.sendHeader("Location", "/");
@@ -245,11 +253,13 @@ void handleLogin() {
       server.sendHeader("Set-Cookie", "ESPSESSIONID=1");
       server.send(301);
       Serial.println("Log in Successful");
+
       return;
     }
     msg = "Wrong username/password! try again.";
     Serial.println("Log in Failed");
   }
+
   String content = "<html><body><form action='/login' method='POST'>To log in, please use : admin/admin<br>";
   content += "User:<input type='text' name='USERNAME' placeholder='user name'><br>";
   content += "Password:<input type='password' name='PASSWORD' placeholder='password'><br>";
@@ -266,6 +276,7 @@ void handleLogout() {
     server.sendHeader("Cache-Control", "no-cache");
     server.sendHeader("Set-Cookie", "ESPSESSIONID=0");
     server.send(301);
+
     return;
   }
 }
@@ -293,10 +304,14 @@ bool sensorOnAlert() {
 
 bool movementSensorOnAlert() {
   sensor = digitalRead(movementSensorPin);
-  //While sensor is not moving, analog pin receive 1023~1024 value
+  // While sensor is not moving, pin receive
+  //In Analog =>  1023~1024 value
+  //In Digit => 0 value (LOW)
 
   Serial.print("sensor      :");
   Serial.println(sensor);
+  Serial.print("sensor      :");
+  Serial.println(sensor == LOW ? "LOW" : "HIGH");
 
   return sensor == HIGH;
 }
@@ -307,7 +322,7 @@ bool lightSensorOnAlert() {
   Serial.print("photocellReading : ");
   Serial.println(photocellReading);
 
-  return photocellReading > 500;//photocellReading;
+  return photocellReading > 500;
 }
 
 /**
@@ -315,18 +330,23 @@ bool lightSensorOnAlert() {
 */
 bool is_authentified() {
   Serial.println("Enter is_authentified");
+
   if (server.hasHeader("Cookie")) {
     Serial.print("Found cookie: ");
     String cookie = server.header("Cookie");
     Serial.println(cookie);
+
     if (cookie.indexOf("ESPSESSIONID=1") != -1) {
       Serial.println("Authentification Successful");
+
       return true;
     }
   }
   Serial.println("Authentification Failed");
+
   return false;
 }
+
 bool toggleAlarm() {
   return isActive = !isActive;
 }
@@ -339,11 +359,19 @@ bool toggleInAlarm() {
   return inAlarm = !inAlarm;
 }
 
-String currentState() {
+bool toggleMailSend() {
+  if (!isActive) {
+    return mailSend = false;
+  }
+
+  return mailSend = !mailSend;
+}
+
+String getLabelCurrentState() {
   return isActive ? active : desactive;
 }
 
-String currentButtonToggle() {
+String getLabelToggleButton() {
   return isActive ? toggle_desactivation : toggle_activation;
 }
 
