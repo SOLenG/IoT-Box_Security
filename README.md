@@ -52,3 +52,5 @@ Composants nécessaires
 WARNING : for mail sender, you must change the login and password in gsender.h by your logins (encode 64), 
 the ones writtend actually are not working
 
+[Documentation system](doc/system.pdf)
+
